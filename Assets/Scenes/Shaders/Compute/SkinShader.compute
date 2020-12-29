@@ -1,0 +1,197 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel Skin
+#pragma kernel Particles
+
+
+
+    struct Vert{
+        float3 pos;
+        float3 nor;
+        float2 uv;
+
+        float3 bindPos;
+        float3 bindNor;
+        float4 boneWeights;
+        float4 boneIDs;
+        float2 debug;
+    };
+        
+    struct Particle {
+        float3 pos;
+        float3 vel;
+
+        float2 uv;
+
+        float3 triWeights;
+        float3 triIDs;
+        
+        float2 debug;
+    };
+
+
+    RWStructuredBuffer<Vert> _VertBuffer;
+    RWStructuredBuffer<Particle> _ParticleBuffer;
+
+    StructuredBuffer<float4x4> _BoneBuffer;
+    StructuredBuffer<float4x4> _BindBuffer;
+
+ #include "../Chunks/snoise.cginc"
+ #include "../Chunks/curlNoise.cginc"
+
+
+ float3 _TornadoPosition;
+
+#define NR_THREADS 128
+[numthreads(NR_THREADS,1,1)]
+void Skin(uint threadID : SV_GroupIndex, uint3 u3GroupID : SV_GroupID, uint3 id : SV_DispatchThreadID) {
+
+
+    uint pID = threadID + u3GroupID.x * NR_THREADS;
+
+    Vert v = _VertBuffer[pID];
+
+    float4x4 bi0 = _BindBuffer[ int(v.boneIDs[0]) ];
+    float4x4 bi1 = _BindBuffer[ int(v.boneIDs[1]) ];
+    float4x4 bi2 = _BindBuffer[ int(v.boneIDs[2]) ];
+    float4x4 bi3 = _BindBuffer[ int(v.boneIDs[3]) ];
+
+    float4x4 bo0 = _BoneBuffer[ int(v.boneIDs[0]) ];
+    float4x4 bo1 = _BoneBuffer[ int(v.boneIDs[1]) ];
+    float4x4 bo2 = _BoneBuffer[ int(v.boneIDs[2]) ];
+    float4x4 bo3 = _BoneBuffer[ int(v.boneIDs[3]) ];
+                    
+    float4x4 m0 = mul(bo0,bi0);
+    float4x4 m1 = mul(bo1,bi1);
+    float4x4 m2 = mul(bo2,bi2);
+    float4x4 m3 = mul(bo3,bi3);
+
+    float3 bp0 = mul( m0 , float4( v.bindPos , 1 ) ).xyz;
+    float3 bp1 = mul( m1 , float4( v.bindPos , 1 ) ).xyz;
+    float3 bp2 = mul( m2 , float4( v.bindPos , 1 ) ).xyz;
+    float3 bp3 = mul( m3 , float4( v.bindPos , 1 ) ).xyz;
+
+
+    float3 bn0 = normalize(mul( m0 , float4( v.bindNor , 0 ) ).xyz);
+    float3 bn1 = normalize(mul( m1 , float4( v.bindNor , 0 ) ).xyz);
+    float3 bn2 = normalize(mul( m2 , float4( v.bindNor , 0 ) ).xyz);
+    float3 bn3 = normalize(mul( m3 , float4( v.bindNor , 0 ) ).xyz);
+
+    float3  fBindPos  = bp0 * v.boneWeights[0];
+            fBindPos += bp1 * v.boneWeights[1];
+            fBindPos += bp2 * v.boneWeights[2];
+            fBindPos += bp3 * v.boneWeights[3];
+
+
+    float3  fBindNor  = bn0 * v.boneWeights[0];
+            fBindNor += bn1 * v.boneWeights[1];
+            fBindNor += bn2 * v.boneWeights[2];
+            fBindNor += bn3 * v.boneWeights[3];
+
+
+    //v.pos = lerp(v.pos , fBindPos , .1);
+    v.pos = fBindPos;
+
+
+    v.nor = fBindNor;   
+
+
+    v.debug.x = .3;
+    v.debug.y = 1;
+
+
+    _VertBuffer[pID] = v;
+
+        
+
+}
+
+
+
+float hash( float n ){
+        return frac(sin(n)*43758.5453);
+      }
+
+
+
+float3 _Gravity;       
+float   _Dampening;     
+float   _NoiseSize;     
+float   _NoisePower;    
+float   _NormalPower;   
+float   _VelocityPower; 
+float   _DieHard;       
+
+#define NR_THREADS 128
+[numthreads(NR_THREADS,1,1)]
+void Particles(uint threadID : SV_GroupIndex, uint3 u3GroupID : SV_GroupID, uint3 id : SV_DispatchThreadID) {
+
+
+    uint pID = threadID + u3GroupID.x * NR_THREADS;
+
+    Particle p  = _ParticleBuffer[ pID ];
+
+
+    Vert v1 = _VertBuffer[int(p.triIDs.x)];
+    Vert v2 = _VertBuffer[int(p.triIDs.y)];
+    Vert v3 = _VertBuffer[int(p.triIDs.z)];
+
+
+    float3  fPos  = v1.pos * p.triWeights.x;
+            fPos += v2.pos * p.triWeights.y;
+            fPos += v3.pos * p.triWeights.z;
+
+
+    float3  fNor  = v1.nor * p.triWeights.x;
+            fNor += v2.nor * p.triWeights.y;
+            fNor += v3.nor * p.triWeights.z;
+
+float life = p.debug.x;
+
+   life -= .001 * ( hash( float(pID)) + 5) * _DieHard;
+
+
+   if( life <=  0){
+
+       life = 1; 
+       p.pos = fPos;
+       p.vel = fNor * _NormalPower;
+
+   }
+
+
+    float3 curlForce = curlNoise( fPos  * _NoiseSize )  * _NoisePower;//* ( 1-p.debug.x);
+    p.vel += curlForce;
+
+    float3 tornado = fPos - float3(0,0,0);
+
+
+
+    tornado *= float3(1,0,1);
+    
+    p.vel -= tornado;
+
+
+    ///float3 curlTornado =
+
+
+    //float3 ogTornado = tornado;
+    //float3 up = float3(0,1,0);
+    //tornado = cross( tornado , up );
+
+    //p.vel += ogTornado;
+
+
+   p.vel += _Gravity;//float3(0,1,0);
+   p.pos += p.vel * .1;
+   p.vel *= _Dampening;
+
+   p.debug.x = life;
+
+
+
+   p.debug.y = .2;
+   _ParticleBuffer[pID] = p;
+
+
+
+}
