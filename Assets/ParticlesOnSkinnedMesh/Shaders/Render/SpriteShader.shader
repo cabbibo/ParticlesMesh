@@ -1,8 +1,13 @@
-﻿Shader "Unlit/debugVertShader2"
+﻿Shader "ParticlesOnSkinnedMesh/SpriteShader"
 {
     Properties
     {
         _Size ("Size", Float) = 0.1
+        _AlphaCuttoff ("AlphaCuttoff", Float) = 0.1
+        _SpriteSize("SpriteSize",int) = 6
+        _MainTex ("tex" , 2D )  = "white" {}
+        _StartingColor("_Color", Color ) = (1,1,1,1)
+        _EndingColor("_Color", Color ) = (1,1,1,1)
     }
     SubShader
     {
@@ -10,8 +15,6 @@
         LOD 100
 
         Cull Off
-       // ZWrite Off
-       // Blend One One // Additive
 
         Pass
         {
@@ -23,22 +26,7 @@
 
             #include "UnityCG.cginc"
 
-            struct Vert{
-                float3 pos;
-                float3 normal;
-                float2 uv;
-
-                float3 bindPos;
-                float3 bindNor;
-                float4 boneWeights;
-                float4 boneIDs;
-                float2 debug;
-            };
-
-            sampler2D _AudioMap;
-
-            StructuredBuffer<Vert> _VertBuffer;
-                  struct Particle {
+        struct Particle {
             float3 pos;
             float3 vel;
 
@@ -56,14 +44,21 @@
             struct v2f
             {
                 float2 uv : TEXCOORD0;
+                float2 uv2 : TEXCOORD4;
                 float2 debug : TEXCOORD1;
                 float4 vertex : SV_POSITION;
                 float3 world : TEXCOORD3;
-                float4 aCol : TEXCOORD4;
                 float id : TEXCOORD2;
             };
 
+                  float hash( float n ){
+        return frac(sin(n)*43758.5453);
+      }
+
             float _Size;
+            float _AlphaCuttoff;
+            int _SpriteSize;
+            sampler2D _MainTex;
 
             v2f vert (uint vid : SV_VertexID)
             {
@@ -78,14 +73,14 @@
 
                 Particle v = _ParticleBuffer[vertID];
 
-                float4 aCol = tex2Dlod(_AudioMap, float4(1-v.debug.x,0,0,0) );
-                float3 p1 = v.pos + ( - left - up ) * _Size * min( (1-v.debug.x) * 5 ,  v.debug.x) * length(aCol);
-                float3 p2 = v.pos + ( + left - up ) * _Size * min( (1-v.debug.x) * 5 ,  v.debug.x) * length(aCol);
-                float3 p3 = v.pos + ( - left + up ) * _Size * min( (1-v.debug.x) * 5 ,  v.debug.x) * length(aCol);
-                float3 p4 = v.pos + ( + left + up ) * _Size * min( (1-v.debug.x) * 5 ,  v.debug.x) * length(aCol);
+                float3 p1 = v.pos + ( - left - up ) * _Size * min( (1-v.debug.x) * 5 ,  v.debug.x);
+                float3 p2 = v.pos + ( + left - up ) * _Size * min( (1-v.debug.x) * 5 ,  v.debug.x);
+                float3 p3 = v.pos + ( - left + up ) * _Size * min( (1-v.debug.x) * 5 ,  v.debug.x);
+                float3 p4 = v.pos + ( + left + up ) * _Size * min( (1-v.debug.x) * 5 ,  v.debug.x);
 
                 float3 fPos;
                 float2 fUV;
+
                  if( alternate == 0 ){
                     fPos = p1;
                     fUV = float2(0,0);
@@ -106,30 +101,35 @@
                     fUV = float2(0,1);
                 }
 
+
+                float col = hash( float(vertID * 10));
+                float row = hash( float(vertID * 20));
+
+                o.uv2 = (fUV + floor(_SpriteSize * float2( col , row )))/_SpriteSize;
+
+
                 o.debug = v.debug;
                 o.uv = fUV;
                 o.id = float(vertID);
                 o.world = fPos;
 
-    o.aCol = aCol;
                 o.vertex = mul(UNITY_MATRIX_VP, float4(fPos,1.0f));
+
                 return o;
+            
             }
-float3 hsv(float h, float s, float v)
-{
-  return lerp( float3( 1.0 , 1, 1 ) , clamp( ( abs( frac(
-    h + float3( 3.0, 2.0, 1.0 ) / 3.0 ) * 6.0 - 3.0 ) - 1.0 ), 0.0, 1.0 ), s ) * v;
-}
 
-
+            float4 _StartingColor;
+            float4 _EndingColor;
             fixed4 frag (v2f i) : SV_Target
             {
 
-                float l = length(i.uv-.5);
-               // if( l > .5 ){discard;}
+
                 // sample the texture
-                fixed4 col = 1;//.01*tex2D(_AudioMap,  i.debug.x );
-                col.xyz = hsv( i.debug.x  * .3+ _Time.y, 1, i.debug.x);
+                fixed4 col = tex2D(_MainTex , i.uv2);
+                if(col.a < _AlphaCuttoff){discard;}
+
+                col *= lerp(_StartingColor , _EndingColor , i.debug.x);
              
                 return col;
             }

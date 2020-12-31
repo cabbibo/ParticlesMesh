@@ -162,25 +162,6 @@ float life = p.debug.x;
     float3 curlForce = curlNoise( fPos  * _NoiseSize )  * _NoisePower;//* ( 1-p.debug.x);
     p.vel += curlForce;
 
-    float3 tornado = fPos - float3(0,0,0);
-
-
-
-    tornado *= float3(1,0,1);
-    
-    p.vel -= tornado;
-
-
-    ///float3 curlTornado =
-
-
-    //float3 ogTornado = tornado;
-    //float3 up = float3(0,1,0);
-    //tornado = cross( tornado , up );
-
-    //p.vel += ogTornado;
-
-
    p.vel += _Gravity;//float3(0,1,0);
    p.pos += p.vel * .1;
    p.vel *= _Dampening;
