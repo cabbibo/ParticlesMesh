@@ -23,6 +23,7 @@
 
             struct Vert{
                 float3 position;
+                float3 velocity;
                 float3 normal;
                 float2 uv;
 
@@ -30,7 +31,7 @@
                 float3 bindNor;
                 float4 boneWeights;
                 float4 boneIDs;
-                float2 debug;
+                float3 debug;
             };
 
             StructuredBuffer<Vert> _VertBuffer;

@@ -27,12 +27,14 @@ public class particlesOnMesh : MonoBehaviour
     
     // Parameters for Compute Shader
     public Vector3  _Gravity;
+    public Vector3  _Velocity;
     public float    _Dampening;
     public float    _NoiseSize;
     public float    _NoisePower;
     public float    _NormalPower;
     public float    _VelocityPower;
-    public float    _DieHard;
+    public float    _FlingPower;
+    public float    _DeathRate;
 
 
 
@@ -115,17 +117,17 @@ into a compute buffer so we can do the mesh skinning ourselves
               float2 debug;
           }
         
-            3 + 3 + 2 + 3 + 3 + 4 + 4 + 2
-            24
+            3 + 3 +3 + 2 + 3 + 3 + 4 + 4 + 3
+            28
         
         */
 
 
         // making the actual buffer
-        vertBuffer = new ComputeBuffer( verts.Length , 24 * sizeof(float));
+        vertBuffer = new ComputeBuffer( verts.Length , 28 * sizeof(float));
 
         // creating a float array to populate with the data
-        float[] vertBufferInfo = new float[ 24 * verts.Length ];
+        float[] vertBufferInfo = new float[ 28 * verts.Length ];
 
         int index = 0;
         for( int i = 0; i < verts.Length; i++ ){
@@ -138,6 +140,12 @@ into a compute buffer so we can do the mesh skinning ourselves
             vertBufferInfo[ index ++ ] = 0;
             vertBufferInfo[ index ++ ] = 0;
            
+            // Velocity to be calcuated
+            vertBufferInfo[ index ++ ] = 0;
+            vertBufferInfo[ index ++ ] = 0;
+            vertBufferInfo[ index ++ ] = 0;
+
+
             // final normal ( don't need to assign now)
             vertBufferInfo[ index ++ ] = 0;
             vertBufferInfo[ index ++ ] = 0;
@@ -177,6 +185,7 @@ into a compute buffer so we can do the mesh skinning ourselves
             // debug information
             vertBufferInfo[ index ++ ] = 1;
             vertBufferInfo[ index ++ ] = .5f;
+            vertBufferInfo[ index ++ ] = 0;
         
         }
 
@@ -292,7 +301,7 @@ of the mesh!
             particleValues[index++] = 0;
             particleValues[index++] = 0;
 
-            // normal to be calculated
+            // velocity to be calculated
             particleValues[index++] = 0;
             particleValues[index++] = 0;
             particleValues[index++] = 0;
@@ -344,8 +353,8 @@ of the mesh!
             particleValues[index++] = t2;
 
 
-            // debug
-            particleValues[index++] = 0;
+            // give us a random starting life
+            particleValues[index++] = Random.Range(0.0f,.9999f);
             particleValues[index++] = 0;
         
         }
@@ -435,12 +444,14 @@ of the mesh!
         */
 
         shader.SetVector(   "_Gravity"        , _Gravity       );
+        shader.SetVector(   "_Velocity"       , _Velocity      );
         shader.SetFloat(    "_Dampening"      , _Dampening     );
         shader.SetFloat(    "_NoiseSize"      , _NoiseSize     );
         shader.SetFloat(    "_NoisePower"     , _NoisePower    );
         shader.SetFloat(    "_NormalPower"    , _NormalPower   );
         shader.SetFloat(    "_VelocityPower"  , _VelocityPower );
-        shader.SetFloat(    "_DieHard"        , _DieHard       );
+        shader.SetFloat(    "_DeathRate"      , _DeathRate     );
+        shader.SetFloat(    "_FlingPower"     , _FlingPower    );
 
         // Figure out how many times we need to dispatch
         shader.GetKernelThreadGroupSizes(1, out numThreads , out y, out z);

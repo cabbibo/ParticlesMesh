@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: ShadowShader
-  m_Shader: {fileID: 4800000, guid: 370f53f2c1aea4e458961b9f9561e1da, type: 3}
+  m_Name: velocity
+  m_Shader: {fileID: 4800000, guid: f762146a858998745bf69267f7db9ef1, type: 3}
   m_ShaderKeywords: 
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
@@ -68,7 +68,7 @@ Material:
     - _Mode: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.02
-    - _Size: 0.04
+    - _Size: 0.1
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SpriteSize: 6
@@ -78,5 +78,5 @@ Material:
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _EndingColor: {r: 0.8623762, g: 0, b: 1, a: 1}
-    - _StartingColor: {r: 0, g: 1, b: 1, a: 1}
+    - _EndingColor: {r: 1, g: 1, b: 1, a: 1}
+    - _StartingColor: {r: 1, g: 1, b: 1, a: 1}

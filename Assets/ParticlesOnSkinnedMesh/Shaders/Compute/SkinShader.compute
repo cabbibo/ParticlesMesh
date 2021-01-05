@@ -5,18 +5,22 @@
 
 
     struct Vert{
+        
         float3 pos;
+        float3 vel;
         float3 nor;
+        
         float2 uv;
 
         float3 bindPos;
         float3 bindNor;
         float4 boneWeights;
         float4 boneIDs;
-        float2 debug;
+        float3 debug;
     };
         
     struct Particle {
+        
         float3 pos;
         float3 vel;
 
@@ -89,6 +93,7 @@ void Skin(uint threadID : SV_GroupIndex, uint3 u3GroupID : SV_GroupID, uint3 id 
 
 
     //v.pos = lerp(v.pos , fBindPos , .1);
+    v.vel = fBindPos - v.pos;
     v.pos = fBindPos;
 
 
@@ -113,13 +118,15 @@ float hash( float n ){
 
 
 
-float3 _Gravity;       
+float3  _Gravity;       
+float3  _Velocity;       
 float   _Dampening;     
+float   _FlingPower;     
 float   _NoiseSize;     
 float   _NoisePower;    
 float   _NormalPower;   
 float   _VelocityPower; 
-float   _DieHard;       
+float   _DeathRate;       
 
 #define NR_THREADS 128
 [numthreads(NR_THREADS,1,1)]
@@ -145,25 +152,40 @@ void Particles(uint threadID : SV_GroupIndex, uint3 u3GroupID : SV_GroupID, uint
             fNor += v2.nor * p.triWeights.y;
             fNor += v3.nor * p.triWeights.z;
 
+
+    float3  fVel  = v1.vel * p.triWeights.x;
+            fVel += v2.vel * p.triWeights.y;
+            fVel += v3.vel * p.triWeights.z;
+
+
+
+            
+
 float life = p.debug.x;
 
-   life -= .001 * ( hash( float(pID)) + 5) * _DieHard;
+   life -= .001 * ( hash( float(pID)) + 5) * _DeathRate;
 
+float3 force = 0;
 
    if( life <=  0){
 
        life = 1; 
        p.pos = fPos;
-       p.vel = fNor * _NormalPower;
+        force += fNor * _NormalPower;
+        force += fVel *_FlingPower;
+        force += _Velocity *_VelocityPower;
 
    }
 
 
     float3 curlForce = curlNoise( fPos  * _NoiseSize )  * _NoisePower;//* ( 1-p.debug.x);
-    p.vel += curlForce;
+force += curlForce;
 
-   p.vel += _Gravity;//float3(0,1,0);
-   p.pos += p.vel * .1;
+   force += _Gravity;//float3(0,1,0);
+
+
+   p.vel  += force;
+   p.pos += p.vel;
    p.vel *= _Dampening;
 
    p.debug.x = life;
